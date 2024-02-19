@@ -1,0 +1,161 @@
+---
+title: "Homework4_SDS315"
+author: "Caroline Zhuang"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(mosaic)
+
+gasprices <- read.csv('GasPrices.csv')
+sclass <- read.csv('sclass.csv')
+nbc <- read.csv('nbc_pilotsurvey.csv')
+ebay <- read.csv('ebay.csv')
+```
+
+# **Problem 1** 
+
+## **Theory A** 
+One theory that explains the variation of prices at gas stations is that gas stations charge more if they lack direct competition in sight. That is, if they are the only gas station around. 
+
+```{r, echo = FALSE}
+boot_price_sight = do(10000) * diffmean(Price ~ Competitors, data = resample(gasprices))
+ggplot(boot_price_sight) +
+  geom_histogram(aes(x = diffmean))
+confint(boot_price_sight, level = 0.95)
+```
+
+The difference between prices for gas stations without competition and gas stations with competition (No - Yes) is somewhere between -0.055 and 0.008 dollars, with a 95% confidence level. Since the interval contains zero and even negative numbers, meaning at stations with competition, their prices are the same or even higher, the theory that gas stations charge more without direct competition can not be supported.  
+
+## **Theory B**
+People also claim that the richer the area, the higher the gas prices. 
+
+```{r, echo = FALSE}
+boot_price_income = do(10000) * lm(Price ~ Income, data = resample(gasprices))
+confint(boot_price_income, level = 0.95)
+```
+
+As the median household income of the area increases, the gas prices increase between 6.53E-07 dollars to 1.75E-06 dollars, for a 95% confidence level. For every ten thousand dollars that the income increases, gas prices increase between 6.53E-03 dollars to 1.75E-03 dollars. Since the entire interval is above zero and is positive, this could be evidence for the theory. However, although it is statistically significant, it isn't practically significant as 6.53E-03 dollars is not even 1 cent. 
+
+## **Theory C** 
+Another theory is that gas stations will raise their prices when they are located at stoplights. 
+
+```{r, echo = FALSE}
+boot_price_stoplight = do(10000) * diffmean(Price ~ Stoplight, data = resample(gasprices))
+ggplot(boot_price_stoplight) + 
+  geom_histogram(aes(x = diffmean))
+
+confint(boot_price_stoplight, level = 0.95)
+```
+The difference between gas prices of a station at a stoplight and stations not at a stoplight (Yes - No) is between -0.04 dollars and 0.03 dollars, with a confidence level of 95%. Since the interval contains 0 as well as negative numbers, this theory can not be supported since at some locations near stoplights, the prices are cheaper and at some the prices are the same. 
+
+## **Theory D** 
+People also claim that gas stations with direct highway access charge more. 
+
+```{r, echo = FALSE}
+boot_price_highway = do(10000) * diffmean(Price ~ Highway, data = resample(gasprices))
+ggplot(boot_price_highway) + 
+  geom_histogram(aes(x = diffmean))
+
+confint(boot_price_highway, confint = 0.95)
+```
+The difference between gas stations that have direct highway access and those that don't is between 0.009 and 0.082 dollars, with a 95% confidence level. This provides evidence that the theory can be correct since the entire interval is positive, meaning that prices are higher at stations with direct highway access. 
+
+## **Theory E** 
+```{r, echo = FALSE}
+shell = gasprices %>%
+  select(Name, Price) %>%
+  mutate(Shell = ifelse(Name == "Shell", yes = "Shell", no = "Other"))
+
+
+boot_price_shell = do(1000) * diffmean(Price ~ Shell, data = resample(shell))
+ggplot(boot_price_shell) + 
+  geom_histogram(aes(x = diffmean))
+confint(boot_price_shell, level = 0.95)
+```
+The difference between prices at Shell gas stations and all other gas stations is between -0.01 and 0.062 dollars (Shell - Other), with a confidence level of 95%. Since the interval contains 0 and negative numbers, there is not enough evidence to claim that Shell charges more than other gas stations. 
+
+# **Problem 2** 
+## **Part A** 
+```{r, echo = FALSE}
+sclass_2011 = sclass %>%
+  filter(year == "2011", trim == "63 AMG")
+
+boot_mileage_2011 = do(10000) * mean(~mileage, data = resample(sclass_2011))
+confint(boot_mileage_2011, level = 0.95)
+```
+The mean mileage for cars that are 2011 and submodel 63 AMG is between 26,187.6 miles and 31,785.9 miles, with a 95% confidence level. 
+
+## **Part B** 
+```{r, echo = FALSE}
+sclass_black = sclass %>%
+  filter(year == "2014", trim == "550") %>%
+  mutate(isBlack = ifelse(color == "Black", yes = "True", no = "False"))
+
+bootstrap_color_black = do(10000) * prop(~isBlack, data = resample(sclass_black))
+confint(bootstrap_color_black, level = 0.95)
+```
+The proportion of 2014 cars with a trim of 550 that were black is in between 0.417 and 0.453, since the interval is for the proportion of "False", with a confidence level of 95%. 
+
+# **Problem 3** 
+## **Part A** 
+```{r, echo = FALSE}
+nbc_happy = nbc %>%
+  filter(Show == "Living with Ed" | Show == "My Name is Earl")
+
+
+boot_nbc_happy = do(10000)* diffmean(Q1_Happy ~ Show, data = resample(nbc_happy))
+confint(boot_nbc_happy, level = 0.95)
+```
+**1) Question:** Which show, "Living with Ed" or "My Name is Earl", consistently provides watchers with more happiness levels?
+**2) Approach:** I decided to use a bootstrapping method and take the difference in means between happiness levels from 10000 re-samples. 
+**3) Results:** The difference between "My Name is Earl" and "Living with Ed" happiness levels is between -0.396 and 0.101, with a confidence level of 95%. 
+**4) Conclusion:** Since the interval contains zero, there is no evidence that one show consistently produces more happiness levels. 
+
+## **Part B** 
+```{r, echo = FALSE}
+nbc_annoyed = nbc %>%
+  filter(Show == "The Biggest Loser" | Show == "The Apprentice: Los Angeles")
+
+boot_nbc_annoyed = do(10000) * diffmean(Q1_Annoyed ~ Show, data = resample(nbc_annoyed))
+confint(boot_nbc_annoyed, level = 0.95)
+```
+**1) Question:** Which show, "The Biggest Loser" or "The Apprentice: Los Angeles", consistently annoys watchers more? 
+**2) Approach:** I decided to use a bootstrapping method by re-sampling the dataset 10,000 times and taking the difference in means between the annoyed levels of both shows. 
+**3) Result:** The difference between the annoyed levels of "The Biggest Loser" and "The Apprentice: Los Angeles" (TBL - TALA) is between -0.52 and -0.013, with a 95% confidence level.
+**4) Conclusion:** Since the entire interval is negative, this means that "The Apprentice: Los Angeles" consistently produces a higher mean Q1_Annoyed response. 
+
+## **Part C**
+```{r, echo = FALSE}
+nbc_dancing = nbc %>%
+  filter(Show == "Dancing with the Stars") %>%
+  mutate(isConfused = ifelse(Q2_Confusing == "4" | Q2_Confusing == "5", yes = "True", no = "False"))
+
+boot_nbc_dancing = do(10000) * prop(~isConfused, data = resample(nbc_dancing))
+confint(boot_nbc_dancing, level = 0.95)
+```
+**1) Question:** Based on this sample of respondents, what proportion of American TV watchers would we expect to give a response of 4 or greater to the “Q2_Confusing” question? 
+**2) Approach:** I decided to first mutate the data by adding a column "isConfused", which determines if the users answered 4 or higher for Q2_Confusing. Then I used the bootstrapping method to resample the data 10,000 times and get the proportion of those who answered false. 
+**3) Results:** The interval for those who answered 4 or higher for Q2_Confusing is between 0.055 and 0.12, with a 95% confidence level. 
+**4) Conclusion:** We would expect between 5.5% and 12% of viewers to rate "Dancing with the Stars" a 4 or higher for how confused they feel after viewing. 
+
+# **Problem 4** 
+```{r, echo = FALSE}
+ebay  = ebay %>%
+  mutate(rev_ratio = rev_after / rev_before)
+
+boot_ebay = do(10000) * diffmean(rev_ratio ~ adwords_pause, data = resample(ebay))
+confint(boot_ebay, level = 0.95)
+```
+**1) Question:** Is the before-and-after revenue ratio the same for the treatment group and the control group? 
+**2) Approach:** The dataset ebay is mutated to include the revenue ratio (revenue after/revenue after). Afterwards, I did a bootstrap simulation to find a difference in the means of the revenue ratio between the treatment group (1) and the control group (0). Then, the confidence interval was calculated. 
+**3) Results:** The difference between the treatment group and control group revenue ratios (treatment - control) is between -0.09 and -0.014, with a 95% confidence level. 
+**4) Conclusion:** Because the entire interval is negative, this means that the control group's revenue ratios are higher than the treatment group. Since the ratio is higher, we can conclude that the paid search on Google benefits Ebay's revenue. 
